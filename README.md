@@ -24,8 +24,8 @@ PaLI-GeMMA Image Analyzer is a web application that utilizes the PaLI-GeMMA (Pat
 
 1. Clone the repository:
    ```
-   git clone https://github.com/TanaroSch/pali-gemma-image-analyzer.git
-   cd pali-gemma-image-analyzer
+   git clone https://github.com/TanaroSch/PaliGemma.git
+   cd PaliGemma
    ```
 
 2. Create a virtual environment and activate it:
