@@ -9,6 +9,7 @@ from huggingface_hub import login
 from dotenv import load_dotenv
 import os
 from threading import Thread
+import numpy as np
 
 # Load environment variables from .env file
 load_dotenv()
@@ -42,6 +43,23 @@ else:
 model = PaliGemmaForConditionalGeneration.from_pretrained(model_dir)
 processor = AutoProcessor.from_pretrained(model_dir)
 
+def process_image(image):
+    # Convert to RGB if it's not
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
+    
+    # Resize the image to a standard size
+    image = image.resize((224, 224))
+    
+    # Convert to numpy array
+    image_array = np.array(image)
+    
+    # Ensure the image is in the correct format (H, W, C)
+    if image_array.shape[0] == 3:
+        image_array = np.transpose(image_array, (1, 2, 0))
+    
+    return image_array
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -51,26 +69,33 @@ def analyze():
     prompt = request.form['prompt']
     image_source = request.form['image_source']
     
-    if image_source == 'url':
-        image_url = request.form['image_url']
-        response = requests.get(image_url)
-        raw_image = Image.open(BytesIO(response.content))
-    else:
-        image_file = request.files['image_file']
-        raw_image = Image.open(image_file)
+    try:
+        if image_source == 'url':
+            image_url = request.form['image_url']
+            response = requests.get(image_url)
+            raw_image = Image.open(BytesIO(response.content))
+        else:
+            image_file = request.files['image_file']
+            raw_image = Image.open(image_file)
+        
+        processed_image = process_image(raw_image)
+        
+        inputs = processor(prompt, images=processed_image, return_tensors="pt")
+        
+        streamer = TextIteratorStreamer(processor.tokenizer, skip_prompt=True)
+        generation_kwargs = dict(inputs, streamer=streamer, max_new_tokens=100)
 
-    inputs = processor(prompt, raw_image, return_tensors="pt")
+        def generate():
+            thread = Thread(target=model.generate, kwargs=generation_kwargs)
+            thread.start()
+            for text in streamer:
+                yield text
+
+        return app.response_class(generate(), mimetype='text/plain')
     
-    streamer = TextIteratorStreamer(processor.tokenizer, skip_prompt=True)
-    generation_kwargs = dict(inputs, streamer=streamer, max_new_tokens=100)
-
-    def generate():
-        thread = Thread(target=model.generate, kwargs=generation_kwargs)
-        thread.start()
-        for text in streamer:
-            yield text
-
-    return app.response_class(generate(), mimetype='text/plain')
+    except Exception as e:
+        app.logger.error(f"Error processing request: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
