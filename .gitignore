@@ -1,4 +1,29 @@
-venv/**
-model/**
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
 .env
-paligemma.py
+
+# Flask
+instance/
+.webassets-cache
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Model cache
+model_cache/
+model/
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
