@@ -1,0 +1,90 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaLI-GeMMA Image Analyzer</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #dropZone { border: 2px dashed #ccc; padding: 20px; text-align: center; margin-bottom: 20px; }
+        #dropZone.dragover { background-color: #f0f0f0; }
+        textarea, input[type="text"] { width: 100%; margin-bottom: 10px; }
+        #result { border: 1px solid #ccc; padding: 10px; min-height: 100px; }
+    </style>
+</head>
+<body>
+    <h1>PaLI-GeMMA Image Analyzer</h1>
+    <div id="dropZone">
+        <p>Drag & drop an image here, or click to select a file</p>
+        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+    </div>
+    <input type="text" id="imageUrl" placeholder="Or enter an image URL">
+    <textarea id="prompt" rows="3" placeholder="Enter your prompt here"></textarea>
+    <button onclick="analyze()">Analyze</button>
+    <div id="result"></div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        let selectedFile = null;
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            selectedFile = e.dataTransfer.files[0];
+            dropZone.textContent = `Selected: ${selectedFile.name}`;
+        });
+        fileInput.addEventListener('change', (e) => {
+            selectedFile = e.target.files[0];
+            dropZone.textContent = `Selected: ${selectedFile.name}`;
+        });
+
+        function analyze() {
+            const prompt = document.getElementById('prompt').value;
+            const imageUrl = document.getElementById('imageUrl').value;
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Analyzing...';
+
+            const formData = new FormData();
+            formData.append('prompt', prompt);
+            
+            if (imageUrl) {
+                formData.append('image_source', 'url');
+                formData.append('image_url', imageUrl);
+            } else if (selectedFile) {
+                formData.append('image_source', 'file');
+                formData.append('image_file', selectedFile);
+            } else {
+                resultDiv.textContent = 'Please select an image or provide a URL.';
+                return;
+            }
+
+            fetch('/analyze', {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                const reader = response.body.getReader();
+                resultDiv.textContent = '';
+                
+                function read() {
+                    reader.read().then(({done, value}) => {
+                        if (done) return;
+                        resultDiv.textContent += new TextDecoder().decode(value);
+                        read();
+                    });
+                }
+                read();
+            }).catch(error => {
+                resultDiv.textContent = 'An error occurred: ' + error;
+            });
+        }
+    </script>
+</body>
+</html>
