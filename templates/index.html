@@ -11,23 +11,78 @@
         #dropZone.dragover { background-color: #f0f0f0; }
         textarea, input[type="text"] { width: 100%; margin-bottom: 10px; }
         #result { border: 1px solid #ccc; padding: 10px; min-height: 100px; }
+        #imagePreview { max-width: 100%; max-height: 300px; margin-top: 10px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
     <h1>PaLI-GeMMA Image Analyzer</h1>
-    <div id="dropZone">
-        <p>Drag & drop an image here, or click to select a file</p>
-        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+    
+    <div>
+        <input type="radio" id="uploadRadio" name="imageSource" value="upload" checked>
+        <label for="uploadRadio">Upload Image</label>
+        <input type="radio" id="urlRadio" name="imageSource" value="url">
+        <label for="urlRadio">Image URL</label>
     </div>
-    <input type="text" id="imageUrl" placeholder="Or enter an image URL">
-    <textarea id="prompt" rows="3" placeholder="Enter your prompt here"></textarea>
+
+    <div id="uploadSection">
+        <div id="dropZone">
+            <p>Drag & drop an image here, or click to select a file</p>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        </div>
+    </div>
+
+    <div id="urlSection" class="hidden">
+        <input type="text" id="imageUrl" placeholder="Enter image URL">
+    </div>
+
+    <img id="imagePreview" src="" alt="Image preview" style="display: none;">
+
+    <textarea id="prompt" rows="3" placeholder="Enter your prompt here (Press Enter to analyze, Shift+Enter for new line)"></textarea>
     <button onclick="analyze()">Analyze</button>
     <div id="result"></div>
 
     <script>
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
+        const promptTextarea = document.getElementById('prompt');
+        const imagePreview = document.getElementById('imagePreview');
+        const uploadRadio = document.getElementById('uploadRadio');
+        const urlRadio = document.getElementById('urlRadio');
+        const uploadSection = document.getElementById('uploadSection');
+        const urlSection = document.getElementById('urlSection');
+        const imageUrlInput = document.getElementById('imageUrl');
         let selectedFile = null;
+
+        function updateImageSource() {
+            if (uploadRadio.checked) {
+                uploadSection.classList.remove('hidden');
+                urlSection.classList.add('hidden');
+            } else {
+                uploadSection.classList.add('hidden');
+                urlSection.classList.remove('hidden');
+            }
+            updatePreview();
+        }
+
+        uploadRadio.addEventListener('change', updateImageSource);
+        urlRadio.addEventListener('change', updateImageSource);
+
+        function updatePreview() {
+            if (uploadRadio.checked && selectedFile) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(selectedFile);
+            } else if (urlRadio.checked && imageUrlInput.value) {
+                imagePreview.src = imageUrlInput.value;
+                imagePreview.style.display = 'block';
+            } else {
+                imagePreview.style.display = 'none';
+            }
+        }
 
         dropZone.addEventListener('click', () => fileInput.click());
         dropZone.addEventListener('dragover', (e) => {
@@ -40,27 +95,40 @@
             dropZone.classList.remove('dragover');
             selectedFile = e.dataTransfer.files[0];
             dropZone.textContent = `Selected: ${selectedFile.name}`;
+            updatePreview();
         });
         fileInput.addEventListener('change', (e) => {
             selectedFile = e.target.files[0];
             dropZone.textContent = `Selected: ${selectedFile.name}`;
+            updatePreview();
+        });
+        imageUrlInput.addEventListener('input', updatePreview);
+
+        promptTextarea.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                if (e.shiftKey) {
+                    return;
+                } else {
+                    e.preventDefault();
+                    analyze();
+                }
+            }
         });
 
         function analyze() {
             const prompt = document.getElementById('prompt').value;
-            const imageUrl = document.getElementById('imageUrl').value;
             const resultDiv = document.getElementById('result');
             resultDiv.textContent = 'Analyzing...';
 
             const formData = new FormData();
             formData.append('prompt', prompt);
             
-            if (imageUrl) {
-                formData.append('image_source', 'url');
-                formData.append('image_url', imageUrl);
-            } else if (selectedFile) {
+            if (uploadRadio.checked && selectedFile) {
                 formData.append('image_source', 'file');
                 formData.append('image_file', selectedFile);
+            } else if (urlRadio.checked && imageUrlInput.value) {
+                formData.append('image_source', 'url');
+                formData.append('image_url', imageUrlInput.value);
             } else {
                 resultDiv.textContent = 'Please select an image or provide a URL.';
                 return;
