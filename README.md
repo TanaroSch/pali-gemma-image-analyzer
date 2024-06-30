@@ -54,17 +54,19 @@ PaLI-GeMMA Image Analyzer is a web application that utilizes the PaLI-GeMMA (Pat
    python app.py
    ```
 
-2. Open a web browser and navigate to `http://localhost:5000`.
+2. On first startup the model will be downloaded if not existant in the model_cache folder.
 
-3. Upload an image by dragging and dropping it onto the page, or by providing an image URL.
+3. Open a web browser and navigate to `http://localhost:5000`.
 
-4. Enter a prompt or question about the image in the text area.
+4. Upload an image by dragging and dropping it onto the page, or by providing an image URL.
 
-5. Click "Analyze" or press Enter to start the analysis.
+5. Enter a prompt or question about the image in the text area.
 
-6. View the analysis results in real-time as they stream in.
+6. Click "Analyze" or press Enter to start the analysis.
 
-7. Optionally, click "Download Result" to save the analysis as a text file.
+7. View the analysis results in real-time as they stream in.
+
+8. Optionally, click "Download Result" to save the analysis as a text file.
 
 ## Custom Model Path
 
