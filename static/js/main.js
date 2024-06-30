@@ -10,9 +10,16 @@ document.addEventListener("DOMContentLoaded", (event) => {
   const saveResultsButton = document.getElementById("saveResults");
   const recentAnalysesList = document.getElementById("recentAnalyses");
   const darkModeToggle = document.getElementById("darkModeToggle");
+  const resultPromptDiv = document.getElementById("resultPrompt");
+  const resultAnswerDiv = document.getElementById("resultAnswer");
 
+  let currentImageSource = "";
   let selectedFile = null;
   let isAnalyzing = false;
+
+  function updateImageSource(source) {
+    currentImageSource = source;
+  }
 
   // Dark mode toggle
   darkModeToggle.addEventListener("click", () => {
@@ -53,11 +60,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
     } else {
       file = e.dataTransfer.files[0];
     }
-
     if (file && file.type.startsWith("image/")) {
       selectedFile = file;
       dropZone.textContent = `Selected: ${file.name}`;
       updatePreview(URL.createObjectURL(file));
+      updateImageSource(`File: ${file.name}`);
     } else if (e.dataTransfer.getData("text/html")) {
       const html = e.dataTransfer.getData("text/html");
       const match = html.match(/<img[^>]+src="?([^"\s]+)"?\s*/);
@@ -65,6 +72,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
         const imgUrl = match[1];
         imageUrlInput.value = imgUrl;
         updatePreview(imgUrl);
+        updateImageSource(`URL: ${imgUrl}`);
       }
     }
   }
@@ -128,7 +136,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     isAnalyzing = true;
     analyzeButton.disabled = true;
-    resultDiv.textContent = "Analyzing...";
+    resultPromptDiv.textContent = "Analyzing...";
+    resultAnswerDiv.textContent = "";
 
     const formData = new FormData();
     formData.append("prompt", promptTextarea.value);
@@ -140,7 +149,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       formData.append("image_source", "url");
       formData.append("image_url", imageUrlInput.value);
     } else {
-      resultDiv.textContent = "Please select an image or provide a URL.";
+      resultAnswerDiv.textContent = "Please select an image or provide a URL.";
       isAnalyzing = false;
       analyzeButton.disabled = false;
       return;
@@ -161,18 +170,24 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
         const text = new TextDecoder().decode(value);
         result += text;
-        resultDiv.textContent = result;
+
+        // Separate prompt and answer
+        const parts = result.split(promptTextarea.value);
+        if (parts.length > 1) {
+          resultPromptDiv.textContent = promptTextarea.value;
+          resultAnswerDiv.textContent = parts[1].replace("<eos>", "").trim();
+        } else {
+          resultAnswerDiv.textContent = result;
+        }
 
         if (text.includes("<eos>")) {
-          result = result.replace("<eos>", "");
           break;
         }
       }
 
-      resultDiv.textContent = result.trim();
       saveRecentAnalysis(result.trim());
     } catch (error) {
-      resultDiv.textContent = "An error occurred: " + error;
+      resultAnswerDiv.textContent = "An error occurred: " + error;
     } finally {
       isAnalyzing = false;
       analyzeButton.disabled = false;
@@ -181,6 +196,37 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
   analyzeButton.addEventListener("click", analyze);
 
+  fileInput.addEventListener("change", (e) => {
+    selectedFile = e.target.files[0];
+    dropZone.textContent = `Selected: ${selectedFile.name}`;
+    updatePreview(URL.createObjectURL(selectedFile));
+    updateImageSource(`File: ${selectedFile.name}`);
+  });
+
+  imageUrlInput.addEventListener("input", () => {
+    if (imageUrlInput.value) {
+      updatePreview(imageUrlInput.value);
+      updateImageSource(`URL: ${imageUrlInput.value}`);
+    }
+  });
+
+  function formatDateTime(date) {
+    // Format date as yyyy-MM-DD
+    const dateOptions = { year: "numeric", month: "2-digit", day: "2-digit" };
+    const formattedDate = new Intl.DateTimeFormat("en-CA", dateOptions).format(
+      date
+    );
+
+    // Format time based on locale
+    const timeOptions = { hour: "2-digit", minute: "2-digit" };
+    const formattedTime = new Intl.DateTimeFormat(
+      undefined,
+      timeOptions
+    ).format(date);
+
+    return `${formattedDate} ${formattedTime}`;
+  }
+
   function saveRecentAnalysis(result) {
     let recentAnalyses = JSON.parse(
       localStorage.getItem("recentAnalyses") || "[]"
@@ -188,7 +234,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
     recentAnalyses.unshift({
       prompt: promptTextarea.value,
       result: result,
-      timestamp: new Date().toISOString(),
+      imageSource: currentImageSource,
+      timestamp: formatDateTime(new Date()),
     });
     recentAnalyses = recentAnalyses.slice(0, 5); // Keep only the 5 most recent analyses
     localStorage.setItem("recentAnalyses", JSON.stringify(recentAnalyses));
@@ -204,24 +251,36 @@ document.addEventListener("DOMContentLoaded", (event) => {
       const li = document.createElement("li");
       li.className =
         "cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded transition-colors duration-300";
-      li.textContent = `${new Date(
-        analysis.timestamp
-      ).toLocaleString()}: ${analysis.prompt.substring(0, 30)}...`;
+      li.textContent = `${analysis.timestamp}: ${analysis.prompt.substring(
+        0,
+        30
+      )}...`;
       li.addEventListener("click", () => {
         promptTextarea.value = analysis.prompt;
-        resultDiv.textContent = analysis.result;
+        resultPromptDiv.textContent = analysis.prompt;
+        resultAnswerDiv.textContent = analysis.result;
+        currentImageSource = analysis.imageSource;
       });
       recentAnalysesList.appendChild(li);
     });
   }
 
   saveResultsButton.addEventListener("click", () => {
-    const result = resultDiv.textContent;
-    const blob = new Blob([result], { type: "text/plain" });
+    const prompt = resultPromptDiv.textContent;
+    const answer = resultAnswerDiv.textContent;
+    const timestamp = formatDateTime(new Date());
+
+    const resultText = `Analysis Result (${timestamp})
+Image Source: ${currentImageSource}
+Prompt: ${prompt}
+
+Answer: ${answer}`;
+
+    const blob = new Blob([resultText], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "analysis_result.txt";
+    a.download = `analysis_result_${Date.now()}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
