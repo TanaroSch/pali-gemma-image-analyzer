@@ -6,19 +6,19 @@ document.addEventListener("DOMContentLoaded", (event) => {
   const imagePreview = document.getElementById("imagePreview");
   const imageUrlInput = document.getElementById("imageUrl");
   const analyzeButton = document.getElementById("analyzeButton");
-  const resultDiv = document.getElementById("result");
-  const saveResultsButton = document.getElementById("saveResults");
-  const recentAnalysesList = document.getElementById("recentAnalyses");
-  const darkModeToggle = document.getElementById("darkModeToggle");
   const resultPromptDiv = document.getElementById("resultPrompt");
   const resultAnswerDiv = document.getElementById("resultAnswer");
-
-  let currentImageSource = "";
+  const saveResultsButton = document.getElementById("saveResults");
   let selectedFile = null;
   let isAnalyzing = false;
 
-  function updateImageSource(source) {
-    currentImageSource = source;
+  function updatePreview(src) {
+    if (src) {
+      imagePreview.src = src;
+      imagePreview.style.display = "block";
+    } else {
+      imagePreview.style.display = "none";
+    }
   }
 
   // Dark mode toggle
@@ -33,15 +33,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
   // Check for saved dark mode preference
   if (localStorage.getItem("darkMode") === "true") {
     document.documentElement.classList.add("dark");
-  }
-
-  function updatePreview(src) {
-    if (src) {
-      imagePreview.src = src;
-      imagePreview.classList.remove("hidden");
-    } else {
-      imagePreview.classList.add("hidden");
-    }
   }
 
   function handleDrop(e) {
@@ -171,21 +162,17 @@ document.addEventListener("DOMContentLoaded", (event) => {
         const text = new TextDecoder().decode(value);
         result += text;
 
-        // Separate prompt and answer
-        const parts = result.split(promptTextarea.value);
-        if (parts.length > 1) {
-          resultPromptDiv.textContent = promptTextarea.value;
-          resultAnswerDiv.textContent = parts[1].replace("<eos>", "").trim();
-        } else {
-          resultAnswerDiv.textContent = result;
+        resultPromptDiv.textContent = promptTextarea.value;
+        resultAnswerDiv.textContent = result.replace("<eos>", "").trim();
+
+        if (text.includes(promptTextarea.value)) {
+          result = result.replace(promptTextarea.value, "");
         }
 
         if (text.includes("<eos>")) {
           break;
         }
       }
-
-      saveRecentAnalysis(result.trim());
     } catch (error) {
       resultAnswerDiv.textContent = "An error occurred: " + error;
     } finally {
@@ -196,82 +183,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
   analyzeButton.addEventListener("click", analyze);
 
-  fileInput.addEventListener("change", (e) => {
-    selectedFile = e.target.files[0];
-    dropZone.textContent = `Selected: ${selectedFile.name}`;
-    updatePreview(URL.createObjectURL(selectedFile));
-    updateImageSource(`File: ${selectedFile.name}`);
-  });
-
-  imageUrlInput.addEventListener("input", () => {
-    if (imageUrlInput.value) {
-      updatePreview(imageUrlInput.value);
-      updateImageSource(`URL: ${imageUrlInput.value}`);
-    }
-  });
-
-  function formatDateTime(date) {
-    // Format date as yyyy-MM-DD
-    const dateOptions = { year: "numeric", month: "2-digit", day: "2-digit" };
-    const formattedDate = new Intl.DateTimeFormat("en-CA", dateOptions).format(
-      date
-    );
-
-    // Format time based on locale
-    const timeOptions = { hour: "2-digit", minute: "2-digit" };
-    const formattedTime = new Intl.DateTimeFormat(
-      undefined,
-      timeOptions
-    ).format(date);
-
-    return `${formattedDate} ${formattedTime}`;
-  }
-
-  function saveRecentAnalysis(result) {
-    let recentAnalyses = JSON.parse(
-      localStorage.getItem("recentAnalyses") || "[]"
-    );
-    recentAnalyses.unshift({
-      prompt: promptTextarea.value,
-      result: result,
-      imageSource: currentImageSource,
-      timestamp: formatDateTime(new Date()),
-    });
-    recentAnalyses = recentAnalyses.slice(0, 5); // Keep only the 5 most recent analyses
-    localStorage.setItem("recentAnalyses", JSON.stringify(recentAnalyses));
-    updateRecentAnalysesList();
-  }
-
-  function updateRecentAnalysesList() {
-    const recentAnalyses = JSON.parse(
-      localStorage.getItem("recentAnalyses") || "[]"
-    );
-    recentAnalysesList.innerHTML = "";
-    recentAnalyses.forEach((analysis, index) => {
-      const li = document.createElement("li");
-      li.className =
-        "cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded transition-colors duration-300";
-      li.textContent = `${analysis.timestamp}: ${analysis.prompt.substring(
-        0,
-        30
-      )}...`;
-      li.addEventListener("click", () => {
-        promptTextarea.value = analysis.prompt;
-        resultPromptDiv.textContent = analysis.prompt;
-        resultAnswerDiv.textContent = analysis.result;
-        currentImageSource = analysis.imageSource;
-      });
-      recentAnalysesList.appendChild(li);
-    });
-  }
-
   saveResultsButton.addEventListener("click", () => {
     const prompt = resultPromptDiv.textContent;
     const answer = resultAnswerDiv.textContent;
-    const timestamp = formatDateTime(new Date());
+    const timestamp = new Date().toISOString();
 
     const resultText = `Analysis Result (${timestamp})
-Image Source: ${currentImageSource}
 Prompt: ${prompt}
 
 Answer: ${answer}`;
@@ -286,7 +203,4 @@ Answer: ${answer}`;
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   });
-
-  // Initialize recent analyses list
-  updateRecentAnalysesList();
 });

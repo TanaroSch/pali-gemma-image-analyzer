@@ -10,9 +10,7 @@ PaLI-GeMMA Image Analyzer is a web application that utilizes the PaLI-GeMMA (Pat
 - Image URL input support
 - Real-time analysis streaming
 - Responsive design with dark mode support
-- Save analysis results
-- Recent analyses history
-- Custom model path support
+- Download analysis results as text files
 
 ## Prerequisites
 
@@ -26,7 +24,7 @@ PaLI-GeMMA Image Analyzer is a web application that utilizes the PaLI-GeMMA (Pat
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/pali-gemma-image-analyzer.git
+   git clone https://github.com/TanaroSch/pali-gemma-image-analyzer.git
    cd pali-gemma-image-analyzer
    ```
 
@@ -66,7 +64,7 @@ PaLI-GeMMA Image Analyzer is a web application that utilizes the PaLI-GeMMA (Pat
 
 6. View the analysis results in real-time as they stream in.
 
-7. Optionally, save the results or review recent analyses.
+7. Optionally, click "Download Result" to save the analysis as a text file.
 
 ## Custom Model Path
 

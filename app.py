@@ -20,6 +20,7 @@ app = Flask(__name__)
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
+# Hugging Face setup
 HF_TOKEN = os.getenv('HUGGINGFACE_TOKEN')
 if not HF_TOKEN:
     raise ValueError("HUGGINGFACE_TOKEN not found in .env file")
@@ -47,19 +48,11 @@ except Exception as e:
     raise
 
 def preprocess_image(image):
-    # Ensure image is in RGB format
     image = image.convert('RGB')
-    
-    # Resize image to a standard size
     image = image.resize((224, 224))
-    
-    # Convert to numpy array
     image_array = np.array(image)
-    
-    # Ensure the image is in the correct format (H, W, C)
     if image_array.shape[0] == 3:
         image_array = np.transpose(image_array, (1, 2, 0))
-    
     return image_array
 
 @app.route('/')
@@ -100,11 +93,12 @@ def analyze():
             thread.start()
             for text in streamer:
                 yield text
+                print("stream\n")
+                print(text)
                 if text.endswith('<eos>'):
                     break
             app.logger.debug("Generation complete")
 
-        app.logger.info("Returning response stream")
         return Response(generate(), mimetype='text/plain')
     
     except Exception as e:
