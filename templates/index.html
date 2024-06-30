@@ -1,4 +1,3 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,14 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PaLI-GeMMA Image Analyzer</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        #dropZone { border: 2px dashed #ccc; padding: 20px; text-align: center; margin-bottom: 20px; }
-        #dropZone.dragover { background-color: #f0f0f0; }
-        textarea, input[type="text"] { width: 100%; margin-bottom: 10px; }
-        #result { border: 1px solid #ccc; padding: 10px; min-height: 100px; }
-        #imagePreview { max-width: 100%; max-height: 300px; margin-top: 10px; }
-        .hidden { display: none; }
-        #analyzeButton:disabled { opacity: 0.5; cursor: not-allowed; }
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        #dropZone { 
+            border: 2px dashed #ccc; 
+            padding: 20px; 
+            text-align: center; 
+            margin-bottom: 20px; 
+            transition: background-color 0.3s;
+        }
+        #dropZone.dragover, body.dragover { 
+            background-color: #f0f0f0; 
+        }
+        textarea, input[type="text"] { 
+            width: 100%; 
+            margin-bottom: 10px; 
+        }
+        #result { 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            min-height: 100px; 
+        }
+        #imagePreview { 
+            max-width: 100%; 
+            max-height: 300px; 
+            margin-top: 10px; 
+        }
+        .hidden { 
+            display: none; 
+        }
+        #analyzeButton:disabled { 
+            opacity: 0.5; 
+            cursor: not-allowed; 
+        }
     </style>
 </head>
 <body>
@@ -71,8 +99,11 @@
         uploadRadio.addEventListener('change', updateImageSource);
         urlRadio.addEventListener('change', updateImageSource);
 
-        function updatePreview() {
-            if (uploadRadio.checked && selectedFile) {
+        function updatePreview(src) {
+            if (src) {
+                imagePreview.src = src;
+                imagePreview.style.display = 'block';
+            } else if (uploadRadio.checked && selectedFile) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     imagePreview.src = e.target.result;
@@ -87,19 +118,81 @@
             }
         }
 
-        dropZone.addEventListener('click', () => fileInput.click());
-        dropZone.addEventListener('dragover', (e) => {
+        function handleDrop(e) {
             e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
+            e.stopPropagation();
+            document.body.classList.remove('dragover');
             dropZone.classList.remove('dragover');
-            selectedFile = e.dataTransfer.files[0];
-            dropZone.textContent = `Selected: ${selectedFile.name}`;
-            updatePreview();
+
+            let file;
+            if (e.dataTransfer.items) {
+                // Use DataTransferItemList interface to access the file(s)
+                for (let i = 0; i < e.dataTransfer.items.length; i++) {
+                    if (e.dataTransfer.items[i].kind === 'file') {
+                        file = e.dataTransfer.items[i].getAsFile();
+                        break;
+                    }
+                }
+            } else {
+                // Use DataTransfer interface to access the file(s)
+                file = e.dataTransfer.files[0];
+            }
+
+            if (file && file.type.startsWith('image/')) {
+                selectedFile = file;
+                uploadRadio.checked = true;
+                updateImageSource();
+                dropZone.textContent = `Selected: ${file.name}`;
+                updatePreview();
+            } else if (e.dataTransfer.getData('text/html')) {
+                // Handle image dragged from web page
+                const html = e.dataTransfer.getData('text/html');
+                const match = html.match(/<img[^>]+src="?([^"\s]+)"?\s*/);
+                if (match) {
+                    const imgUrl = match[1];
+                    imageUrlInput.value = imgUrl;
+                    urlRadio.checked = true;
+                    updateImageSource();
+                    updatePreview(imgUrl);
+                }
+            }
+        }
+
+        // Add event listeners for drag and drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            document.body.addEventListener(eventName, preventDefaults, false);
+            dropZone.addEventListener(eventName, preventDefaults, false);
         });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            document.body.addEventListener(eventName, highlight, false);
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            document.body.addEventListener(eventName, unhighlight, false);
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            document.body.classList.add('dragover');
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            document.body.classList.remove('dragover');
+            dropZone.classList.remove('dragover');
+        }
+
+        document.body.addEventListener('drop', handleDrop, false);
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
             selectedFile = e.target.files[0];
             dropZone.textContent = `Selected: ${selectedFile.name}`;
