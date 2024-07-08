@@ -42,10 +42,10 @@ PaLI-GeMMA Image Analyzer is a web application that utilizes the PaLI-GeMMA (Pat
 4. Create a `.env` file in the project root, accept the conditions [here](https://huggingface.co/google/paligemma-3b-pt-224) and add your Hugging Face API token:
    ```
    HUGGINGFACE_TOKEN=your_token_here
-   MODEL_CACHE_PATH=./model  # Optional: Set a custom path for model storage
+   MODEL_PATH=./model  # Optional: Set a custom path for model storage
    ```
 
-   Note: If `MODEL_CACHE_PATH` is not set, the application will use `./model` as the default path.
+   Note: If `MODEL_PATH` is not set, the application will use `./model` as the default path.
 
 ## Usage
 
@@ -70,7 +70,7 @@ PaLI-GeMMA Image Analyzer is a web application that utilizes the PaLI-GeMMA (Pat
 
 ## Custom Model Path
 
-You can specify a custom path for storing the PaLI-GeMMA model by setting the `MODEL_CACHE_PATH` environment variable in your `.env` file. If not set, the application will use `./model` as the default path.
+You can specify a custom path for storing the PaLI-GeMMA model by setting the `MODEL_PATH` environment variable in your `.env` file. If not set, the application will use `./model` as the default path.
 
 ## Acknowledgments
 
